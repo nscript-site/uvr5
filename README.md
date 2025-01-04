@@ -18,7 +18,10 @@ python -m pip install -r requirements.txt
 ## 运行
 
 ```bash
-python infer_uvr5.py -model_path uvr5_weights/HP2_all_vocals.pth -model_params 4band_v2 -audio_path ./assets/yueliang.mp3 -save_path ./separated/yueliang
+python infer_uvr5.py -model_path uvr5_weights/HP2_all_vocals.pth -model_params 4band_v2 -audio_path ./assets/yueliang.mp3 -output_vocal_path ./separated/yueliang_vocals_2.wav -output_background_path ./separated/yueliang_background_2.wav
 ```
 
-有的模型如果使用  4band_v2 的 model_params 报错，请换成 4band_v3
+注意：
+- output_vocal_path 和 output_background_path，如果不设置，则不输出对应文件
+- 有的模型如果使用  4band_v2 的 model_params 报错，请换成 4band_v3
+- 有的模型 output_vocal_path 和 output_background_path 是反着来的

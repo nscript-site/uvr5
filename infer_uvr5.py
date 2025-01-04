@@ -15,6 +15,12 @@ import soundfile as sf
 from uvr5_pack.lib_v5.nets_new import CascadedNet
 from uvr5_pack.lib_v5 import nets_61968KB as nets
 import argparse
+
+def ensure_directory_exists(file_path):
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
 class AudioSeparator:
     def __init__(self, agg, model_path, device, is_half, model_params):
         self.model_path = model_path
@@ -45,14 +51,15 @@ class AudioSeparator:
 
         self.mp = mp
         self.model = model
-    def separate(self, music_file, vocal_root=None, ins_root=None, model_params=None, format="flac"):#3个VR模型vocal和ins是反的
-        if ins_root is None and vocal_root is None:
-            return "No save root."
+    def separate(self, music_file, vocal_file_path=None, ins_file_path=None, model_params=None, format="flac"):#3个VR模型vocal和ins是反的
         name = os.path.basename(music_file)
-        if ins_root is not None:
-            os.makedirs(ins_root, exist_ok=True)
-        if vocal_root is not None:
-            os.makedirs(vocal_root, exist_ok=True)
+
+        if ins_file_path is not None and ins_file_path != '':
+            ensure_directory_exists(ins_file_path)
+
+        if vocal_file_path is not None and vocal_file_path != '':
+            ensure_directory_exists(vocal_file_path)
+
         X_wave, y_wave, X_spec_s, y_spec_s = {}, {}, {}, {}
         bands_n = len(self.mp.param["band"])
         # print(bands_n)
@@ -113,7 +120,7 @@ class AudioSeparator:
         y_spec_m = pred * X_phase
         v_spec_m = X_spec_m - y_spec_m
 
-        if ins_root is not None:
+        if ins_file_path is not None and ins_file_path != '':
             if self.data["high_end_process"].startswith("mirroring"):
                 input_high_end_ = spec_utils.mirroring(
                     self.data["high_end_process"], y_spec_m, input_high_end, self.mp
@@ -126,19 +133,15 @@ class AudioSeparator:
             print("%s instruments done" % name)
             if model_params == "4band_v2":
                 sf.write(
-                    os.path.join(
-                        ins_root, "instrument_{}_{}.{}".format(name, self.data["agg"],format)
-                    ),
+                    ins_file_path,
                     (np.array(wav_instrument) * 32768).astype("int16"), self.mp.param["sr"],
                 )  #
             if model_params == "4band_v3":
                 sf.write(
-                    os.path.join(
-                        ins_root, "main_vocal_{}_{}.{}".format(name, self.data["agg"], format)
-                    ),
+                    ins_file_path,
                     (np.array(wav_instrument) * 32768).astype("int16"), self.mp.param["sr"],
                 )  #
-        if vocal_root is not None:
+        if vocal_file_path is not None and vocal_file_path != '':
             if self.data["high_end_process"].startswith("mirroring"):
                 input_high_end_ = spec_utils.mirroring(
                     self.data["high_end_process"], v_spec_m, input_high_end, self.mp
@@ -151,16 +154,12 @@ class AudioSeparator:
             print("%s vocals done" % name)
             if model_params == "4band_v2":
                 sf.write(
-                    os.path.join(
-                        vocal_root, "vocal_{}_{}.{}".format(name, self.data["agg"], format)
-                    ),
+                    vocal_file_path,
                     (np.array(wav_vocals) * 32768).astype("int16"), self.mp.param["sr"],
                 )
             if model_params == "4band_v3":
                 sf.write(
-                    os.path.join(
-                        vocal_root, "others_{}_{}.{}".format(name, self.data["agg"], format)
-                    ),
+                    vocal_file_path,
                     (np.array(wav_vocals) * 32768).astype("int16"), self.mp.param["sr"],
                 )
 
@@ -172,7 +171,8 @@ if __name__ == "__main__":
     parser.add_argument("-model_path", default="uvr5_weights/2_HP-UVR.pth", help="Path to the model weights")
     parser.add_argument("-agg", type=int, default=10, help="Aggregation parameter")
     parser.add_argument("-audio_path", required=True, help="Path to the audio file")
-    parser.add_argument("-save_path", required=True, help="Path to save the output")
+    parser.add_argument("-output_vocal_path", required=True, help="Path to save the output vocal audio file")
+    parser.add_argument("-output_background_path", default='', help="Path to save the output background audio file")
     parser.add_argument("-model_params", default="4band_v2", choices=["4band_v3", "4band_v2"], help="model params")
     parser.add_argument("-format", choices=["wav", "flac"], default="wav",)
     args = parser.parse_args()
@@ -185,8 +185,8 @@ if __name__ == "__main__":
     )
     separator.separate(
         args.audio_path,
-        args.save_path,
-        args.save_path,
+        args.output_vocal_path,
+        args.output_background_path,
         args.model_params,
         args.format
     )
